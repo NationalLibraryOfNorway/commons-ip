@@ -122,6 +122,7 @@ public class SIPBuilder {
 
     try {
       SIPBuilderUtils.addMetadataGroupsToSIP(sip, metadataArgs);
+      LOGGER.error("Cannot add metadata to the SIP");
     } catch (IPException e) {
       LOGGER.debug("Cannot add metadata to the SIP", e);
       throw new SIPBuilderException("Cannot add metadata to the SIP.");

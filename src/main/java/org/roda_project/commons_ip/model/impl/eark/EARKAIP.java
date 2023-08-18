@@ -175,6 +175,7 @@ public class EARKAIP extends AIPWrap {
       }
     } catch (final IOException | NoSuchAlgorithmException e) {
       LOGGER.debug("Error in write method", e);
+      LOGGER.error("Error in write method", e);
       throw new IPException(e.getMessage(), e);
     }
   }
@@ -267,6 +268,7 @@ public class EARKAIP extends AIPWrap {
 
       return aip;
     } catch (final IPException e) {
+      LOGGER.debug("Error parsing E-ARK AIP", e);
       throw new ParseException("Error parsing E-ARK AIP", e);
     }
   }
