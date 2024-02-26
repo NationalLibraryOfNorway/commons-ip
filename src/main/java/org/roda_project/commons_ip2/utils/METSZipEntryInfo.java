@@ -8,23 +8,15 @@
 package org.roda_project.commons_ip2.utils;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-
 import javax.xml.bind.JAXBException;
-
 import org.roda_project.commons_ip.utils.FileZipEntryInfo;
 import org.roda_project.commons_ip.utils.IPException;
 import org.roda_project.commons_ip2.mets_v1_12.beans.FileType;
 import org.roda_project.commons_ip2.mets_v1_12.beans.Mets;
-import org.roda_project.commons_ip2.model.IPConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,26 +54,27 @@ public class METSZipEntryInfo extends FileZipEntryInfo {
     this.size = size;
   }
 
+  public FileType getFileType() {
+    return fileType;
+  }
+
+  public void setFileType(FileType fileType) {
+    this.fileType = fileType;
+  }
+
   @Override
   public void prepareEntryforZipping() throws IPException {
     try {
+      // Write METS to file
       METSUtils.marshallMETS(mets, getFilePath(), rootMETS);
+      setSize(Files.size(getFilePath()));
+
       if (!rootMETS && fileType != null) {
+        // This is a representation METS, and we need to fill the fileType with information
+        // The fileType is used for creating the fileSec with references to the representation METS in the root METS file
+
+        // Fill fileType with MimeType, DateCreated and FileSize
         METSUtils.setFileBasicInformation(LOGGER, getFilePath(), fileType);
-
-        String checksumType = IPConstants.CHECKSUM_ALGORITHM;
-        Set<String> checksumAlgorithms = new HashSet<>();
-        checksumAlgorithms.add(checksumType);
-        try (InputStream inputStream = Files.newInputStream(getFilePath())) {
-          Map<String, String> checksums = ZIPUtils.calculateChecksums(Optional.empty(), inputStream,
-            checksumAlgorithms);
-          String checksum = checksums.get(checksumType);
-          fileType.setCHECKSUM(checksum);
-          fileType.setCHECKSUMTYPE(checksumType);
-        } catch (NoSuchAlgorithmException e) {
-          // do nothing
-        }
-
       }
     } catch (JAXBException | IOException e) {
       throw new IPException("Error marshalling METS", e);

@@ -26,9 +26,7 @@ import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
-
 import javax.xml.bind.DatatypeConverter;
-
 import org.apache.commons.io.IOUtils;
 import org.roda_project.commons_ip.model.ParseException;
 import org.roda_project.commons_ip.utils.IPException;
@@ -54,8 +52,6 @@ public final class ZIPUtils {
    * @param destinationDirectory
    *          this path is only used if unzipping the SIP, otherwise source will
    *          be used
-   * @param ipFileExtension
-   *          file extension (e.g. .zip)
    */
   public static Path extractIPIfInZipFormat(final Path source, Path destinationDirectory) throws ParseException {
     Path ipFolderPath = destinationDirectory;
@@ -85,30 +81,31 @@ public final class ZIPUtils {
   }
 
   public static Map<String, ZipEntryInfo> addMdRefFileToZip(Map<String, ZipEntryInfo> zipEntries, Path filePath,
-    String zipPath, MdRef mdRef) throws IPException {
+                                                            String zipPath, MdRef mdRef) throws IPException {
     zipEntries.put(zipPath, new METSMdRefZipEntryInfo(zipPath, filePath, mdRef));
     return zipEntries;
   }
 
   public static Map<String, ZipEntryInfo> addFileTypeFileToZip(Map<String, ZipEntryInfo> zipEntries, Path filePath,
-    String zipPath, FileType fileType) throws IPException {
+                                                               String zipPath, FileType fileType) throws IPException {
     zipEntries.put(zipPath, new METSFileTypeZipEntryInfo(zipPath, filePath, fileType));
     return zipEntries;
   }
 
   public static Map<String, ZipEntryInfo> addMETSFileToZip(Map<String, ZipEntryInfo> zipEntries, Path filePath,
-    String zipPath, Mets mets, boolean rootMETS, FileType fileType) throws IPException {
+                                                           String zipPath, Mets mets, boolean rootMETS, FileType fileType)
+      throws IPException {
     zipEntries.put(zipPath, new METSZipEntryInfo(zipPath, filePath, mets, rootMETS, fileType));
     return zipEntries;
   }
 
   public static void zip(Map<String, ZipEntryInfo> files, OutputStream out, SIP sip, boolean isCompressed)
-    throws IOException, InterruptedException, IPException {
+      throws IOException, InterruptedException, IPException {
     zip(files, out, sip, true, isCompressed);
   }
 
   public static void zip(Map<String, ZipEntryInfo> files, OutputStream out, SIP sip, boolean createSipIdFolder,
-    boolean isCompressed) throws IOException, InterruptedException, IPException {
+                         boolean isCompressed) throws IOException, InterruptedException, IPException {
     ZipOutputStream zos = new ZipOutputStream(out);
     if (isCompressed) {
       zos.setLevel(Deflater.DEFAULT_COMPRESSION);
@@ -128,6 +125,8 @@ public final class ZIPUtils {
         throw new InterruptedException();
       }
 
+      // if this is a METS file, we need to write it to disk.
+      // If it is a representation METS, we need to fill the fileType object with information
       file.prepareEntryforZipping();
 
       LOGGER.debug("Zipping file {}", file.getFilePath());
@@ -143,28 +142,41 @@ public final class ZIPUtils {
       try (InputStream inputStream = Files.newInputStream(file.getFilePath());) {
         Map<String, String> checksums;
         if (file instanceof METSZipEntryInfo) {
-          checksums = calculateChecksums(Optional.of(zos), inputStream, metsChecksumAlgorithms);
-          METSZipEntryInfo metsEntry = (METSZipEntryInfo) file;
-          metsEntry.setChecksums(checksums);
-          metsEntry.setSize(metsEntry.getFilePath().toFile().length());
+          checksums = calculateChecksumsAndWriteToZip(Optional.of(zos), inputStream, metsChecksumAlgorithms);
         } else {
-          checksums = calculateChecksums(Optional.of(zos), inputStream, nonMetsChecksumAlgorithms);
+          checksums = calculateChecksumsAndWriteToZip(Optional.of(zos), inputStream, nonMetsChecksumAlgorithms);
         }
 
         LOGGER.debug("Done zipping file");
         String checksum = checksums.get(sip.getChecksum());
         String checksumType = sip.getChecksum();
+
+        // What is the purpose of this?
         file.setChecksum(checksum);
         file.setChecksumAlgorithm(checksumType);
-        if (file instanceof METSFileTypeZipEntryInfo) {
-          METSFileTypeZipEntryInfo f = (METSFileTypeZipEntryInfo) file;
+
+        // Update METS with checksums after writing to ZIP and checksums are calculated
+        if (file instanceof METSFileTypeZipEntryInfo f) {
+          // Ordinary files
           f.getMetsFileType().setCHECKSUM(checksum);
           f.getMetsFileType().setCHECKSUMTYPE(checksumType);
-        } else if (file instanceof METSMdRefZipEntryInfo) {
-          METSMdRefZipEntryInfo f = (METSMdRefZipEntryInfo) file;
+        } else if (file instanceof METSMdRefZipEntryInfo f) {
+          // MdRef files
           f.getMetsMdRef().setCHECKSUM(checksum);
           f.getMetsMdRef().setCHECKSUMTYPE(checksumType);
+        } else if (file instanceof METSZipEntryInfo f) {
+          // METS file
+
+          // What is the purpose of this?
+          f.setChecksums(checksums);
+
+          // Only set checksums in fileType if it is a representation METS
+          if (f.getFileType() != null) {
+            f.getFileType().setCHECKSUM(checksum);
+            f.getFileType().setCHECKSUMTYPE(checksumType);
+          }
         }
+
       } catch (NoSuchAlgorithmException e) {
         LOGGER.error("Error while zipping files", e);
       }
@@ -178,8 +190,12 @@ public final class ZIPUtils {
     out.close();
   }
 
-  public static Map<String, String> calculateChecksums(Optional<ZipOutputStream> zos, InputStream inputStream,
-    Set<String> checksumAlgorithms) throws NoSuchAlgorithmException, IOException {
+  /**
+   * Calculates checksums for the contents of an InputStream using the specified algorithms.
+   **/
+  public static Map<String, String> calculateChecksumsAndWriteToZip(Optional<ZipOutputStream> zos, InputStream inputStream,
+                                                                    Set<String> checksumAlgorithms)
+      throws NoSuchAlgorithmException, IOException {
     byte[] buffer = new byte[4096];
     Map<String, String> values = new HashMap<>();
 
