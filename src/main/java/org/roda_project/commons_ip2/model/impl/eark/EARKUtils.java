@@ -17,8 +17,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.apache.commons.lang3.StringUtils;
 import org.roda_project.commons_ip.model.ParseException;
@@ -357,7 +355,8 @@ public class EARKUtils {
           dataFilePath = IPConstants.DATA_FOLDER + dataFilePath;
           dataFilePath = IPConstants.REPRESENTATIONS_FOLDER + representationId + IPConstants.ZIP_PATH_SEPARATOR
             + dataFilePath;
-          ZIPUtils.addFileTypeFileToZip(zipEntries, file.getPath(), dataFilePath, fileType);
+          ZIPUtils.addFileTypeFileToZip(zipEntries, file.getPath(), dataFilePath, fileType,
+            file.getChecksum(), file.getChecksumAlgorithm());
         } else if (file instanceof IPFileShallow shallow && (shallow.getFileLocation() != null)) {
           metsGenerator.addDataFileToMETS(representationMETSWrapper, shallow);
         }
@@ -397,7 +396,8 @@ public class EARKUtils {
           dataFilePath = IPConstants.DATA_FOLDER + dataFilePath;
           dataFilePath = IPConstants.REPRESENTATIONS_FOLDER + representationId + IPConstants.ZIP_PATH_SEPARATOR
             + dataFilePath;
-          ZIPUtils.addFileTypeFileToZip(zipEntries, file.getPath(), dataFilePath, fileType);
+          ZIPUtils.addFileTypeFileToZip(zipEntries, file.getPath(), dataFilePath, fileType,
+            file.getChecksum(), file.getChecksumAlgorithm());
         } else if (file instanceof IPFileShallow shallow && (shallow.getFileLocation() != null)) {
           metsGenerator.addDataFileToMETS(representationMETSWrapper, shallow);
         }
@@ -433,7 +433,8 @@ public class EARKUtils {
 
           dataFilePath = IPConstants.REPRESENTATIONS_FOLDER + representationId + IPConstants.ZIP_PATH_SEPARATOR
             + dataFilePath;
-          ZIPUtils.addFileTypeFileToZip(zipEntries, file.getPath(), dataFilePath, fileType);
+          ZIPUtils.addFileTypeFileToZip(zipEntries, file.getPath(), dataFilePath, fileType,
+            file.getChecksum(), file.getChecksumAlgorithm());
         } else if (file instanceof IPFileShallow shallow && (shallow.getFileLocation() != null)) {
           metsGenerator.addDataFileToMETS(representationMETSWrapper, shallow);
         }
@@ -465,7 +466,8 @@ public class EARKUtils {
           schemaFilePath = IPConstants.REPRESENTATIONS_FOLDER + representationId + IPConstants.ZIP_PATH_SEPARATOR
             + schemaFilePath;
         }
-        ZIPUtils.addFileTypeFileToZip(zipEntries, schema.getPath(), schemaFilePath, fileType);
+        ZIPUtils.addFileTypeFileToZip(zipEntries, schema.getPath(), schemaFilePath, fileType,
+          schema.getChecksum(), schema.getChecksumAlgorithm());
       }
     }
   }
@@ -486,7 +488,8 @@ public class EARKUtils {
           documentationFilePath = IPConstants.REPRESENTATIONS_FOLDER + representationId + IPConstants.ZIP_PATH_SEPARATOR
             + documentationFilePath;
         }
-        ZIPUtils.addFileTypeFileToZip(zipEntries, doc.getPath(), documentationFilePath, fileType);
+        ZIPUtils.addFileTypeFileToZip(zipEntries, doc.getPath(), documentationFilePath, fileType,
+          doc.getChecksum(), doc.getChecksumAlgorithm());
       }
     }
   }
@@ -547,7 +550,8 @@ public class EARKUtils {
           + ModelUtils.getFoldersFromList(submission.getRelativeFolders()) + submission.getFileName();
         final FileType fileType = metsGenerator.addSubmissionFileToMETS(metsWrapper, submissionFilePath,
           submission.getPath());
-        ZIPUtils.addFileTypeFileToZip(zipEntries, submission.getPath(), submissionFilePath, fileType);
+        ZIPUtils.addFileTypeFileToZip(zipEntries, submission.getPath(), submissionFilePath, fileType,
+          submission.getChecksum(), submission.getChecksumAlgorithm());
       }
     }
   }

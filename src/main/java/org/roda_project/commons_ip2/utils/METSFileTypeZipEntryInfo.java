@@ -24,6 +24,16 @@ public class METSFileTypeZipEntryInfo extends FileZipEntryInfo {
     this.setMetsFileType(metsFileType);
   }
 
+  public METSFileTypeZipEntryInfo(String name, Path filePath, FileType metsFileType,
+    String preCalculatedChecksum, String checksumAlgorithm) {
+    super(name, filePath);
+    this.setMetsFileType(metsFileType);
+    if (preCalculatedChecksum != null && !preCalculatedChecksum.isEmpty()) {
+      this.setChecksum(preCalculatedChecksum);
+      this.setChecksumAlgorithm(checksumAlgorithm);
+    }
+  }
+
   @Override
   public void prepareEntryForZipping() {
     // do nothing

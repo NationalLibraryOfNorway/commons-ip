@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -27,7 +28,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
-import jakarta.xml.bind.DatatypeConverter;
 
 import org.apache.commons.io.IOUtils;
 import org.roda_project.commons_ip.model.ParseException;
@@ -98,6 +98,26 @@ public final class ZIPUtils {
     return zipEntries;
   }
 
+  /**
+   * Add a file to the zip entries with an optional pre-calculated checksum.
+   * When a pre-calculated checksum is provided and matches the SIP's checksum algorithm,
+   * the checksum will not be recalculated during zip creation.
+   *
+   * @param zipEntries the map of zip entries
+   * @param filePath the file path
+   * @param zipPath the path within the zip
+   * @param fileType the METS file type
+   * @param preCalculatedChecksum the pre-calculated checksum (may be null or empty)
+   * @param checksumAlgorithm the algorithm used for the pre-calculated checksum (may be null or empty)
+   * @return the updated map of zip entries
+   */
+  public static Map<String, ZipEntryInfo> addFileTypeFileToZip(Map<String, ZipEntryInfo> zipEntries, Path filePath,
+    String zipPath, FileType fileType, String preCalculatedChecksum, String checksumAlgorithm) throws IPException {
+    zipEntries.put(zipPath, new METSFileTypeZipEntryInfo(zipPath, filePath, fileType,
+      preCalculatedChecksum, checksumAlgorithm));
+    return zipEntries;
+  }
+
   public static Map<String, ZipEntryInfo> addMETSFileToZip(Map<String, ZipEntryInfo> zipEntries, Path filePath,
     String zipPath, Mets mets, boolean rootMETS, FileType fileType) throws IPException {
     zipEntries.put(zipPath, new METSZipEntryInfo(zipPath, filePath, mets, rootMETS, fileType));
@@ -130,6 +150,10 @@ public final class ZIPUtils {
         throw new InterruptedException();
       }
 
+      // Save pre-calculated checksum BEFORE it gets overwritten
+      String preCalculatedChecksum = file.getChecksum();
+      String preCalculatedAlgorithm = file.getChecksumAlgorithm();
+
       file.setChecksum(sip.getChecksum());
       file.prepareEntryForZipping();
 
@@ -145,11 +169,24 @@ public final class ZIPUtils {
       zos.putNextEntry(entry);
 
       try (InputStream inputStream = Files.newInputStream(file.getFilePath());) {
+        // Check if file already has a pre-calculated checksum matching the SIP's algorithm
+        boolean hasValidPreCalculatedChecksum = preCalculatedChecksum != null
+          && !preCalculatedChecksum.isEmpty()
+          && preCalculatedAlgorithm != null
+          && preCalculatedAlgorithm.equalsIgnoreCase(sip.getChecksum());
+
         Map<String, String> checksums;
         if (file instanceof METSZipEntryInfo metsEntry) {
+          // METS files always need checksum calculation (they are generated)
           checksums = calculateChecksums(Optional.of(zos), inputStream, metsChecksumAlgorithms);
           metsEntry.setChecksums(checksums);
           metsEntry.setSize(metsEntry.getFilePath().toFile().length());
+        } else if (hasValidPreCalculatedChecksum) {
+          // File has pre-calculated checksum - just copy data without calculating
+          LOGGER.debug("Using pre-calculated checksum for file {}", file.getFilePath());
+          copyWithoutChecksum(zos, inputStream);
+          checksums = new HashMap<>();
+          checksums.put(sip.getChecksum(), preCalculatedChecksum);
         } else {
           checksums = calculateChecksums(Optional.of(zos), inputStream, nonMetsChecksumAlgorithms);
         }
@@ -206,7 +243,8 @@ public final class ZIPUtils {
     } while (numRead != -1);
 
     // generate hex versions of the digests
-    algorithms.forEach((alg, dig) -> values.put(alg, DatatypeConverter.printHexBinary(dig.digest())));
+    HexFormat hexFormat = HexFormat.of().withUpperCase();
+    algorithms.forEach((alg, dig) -> values.put(alg, hexFormat.formatHex(dig.digest())));
 
     return values;
   }
@@ -250,6 +288,17 @@ public final class ZIPUtils {
 
       zipInputStream.close();
     }
+  }
+
+  private static void copyWithoutChecksum(ZipOutputStream zos, InputStream inputStream) throws IOException {
+    byte[] buffer = new byte[4096];
+    int numRead;
+    do {
+      numRead = inputStream.read(buffer);
+      if (numRead > 0) {
+        zos.write(buffer, 0, numRead);
+      }
+    } while (numRead != -1);
   }
 
 }
