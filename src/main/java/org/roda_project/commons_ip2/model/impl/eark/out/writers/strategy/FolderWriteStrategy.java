@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
  */
 public class FolderWriteStrategy implements WriteStrategy {
   private static final Logger LOGGER = LoggerFactory.getLogger(FolderWriteStrategy.class);
+  private static final int BUFFER_SIZE = 4096;
   private Path destinationPath;
 
   @Override
@@ -54,7 +55,7 @@ public class FolderWriteStrategy implements WriteStrategy {
     throw new UnsupportedOperationException("Method not implemented");
   }
 
-  private void writeToPath(final Map<String, ZipEntryInfo> entries, final Path path, String checksumAlgorithm)
+  private void writeToPath(final Map<String, ZipEntryInfo> entries, final Path path, final String checksumAlgorithm)
     throws IPException, InterruptedException {
     try {
       Files.createDirectories(path);
@@ -63,8 +64,8 @@ public class FolderWriteStrategy implements WriteStrategy {
           throw new InterruptedException();
         }
         // Save pre-calculated checksum BEFORE it gets overwritten
-        String preCalculatedChecksum = zipEntryInfo.getChecksum();
-        String preCalculatedAlgorithm = zipEntryInfo.getChecksumAlgorithm();
+        final String preCalculatedChecksum = zipEntryInfo.getChecksum();
+        final String preCalculatedAlgorithm = zipEntryInfo.getChecksumAlgorithm();
 
         zipEntryInfo.setChecksum(checksumAlgorithm);
         zipEntryInfo.prepareEntryForZipping();
@@ -97,8 +98,8 @@ public class FolderWriteStrategy implements WriteStrategy {
     return path;
   }
 
-  private void writeFileToPath(final ZipEntryInfo zipEntryInfo, final Path outputPath, String checksumAlgorithm,
-    String preCalculatedChecksum, String preCalculatedAlgorithm)
+  private void writeFileToPath(final ZipEntryInfo zipEntryInfo, final Path outputPath, final String checksumAlgorithm,
+    final String preCalculatedChecksum, final String preCalculatedAlgorithm)
     throws IOException, NoSuchAlgorithmException {
     InputStream is = null;
     OutputStream os = null;
@@ -109,7 +110,7 @@ public class FolderWriteStrategy implements WriteStrategy {
       os = Files.newOutputStream(outputPath);
 
       // Check if file already has a pre-calculated checksum matching the requested algorithm
-      boolean hasValidPreCalculatedChecksum = preCalculatedChecksum != null
+      final boolean hasValidPreCalculatedChecksum = preCalculatedChecksum != null
         && !preCalculatedChecksum.isEmpty()
         && preCalculatedAlgorithm != null
         && preCalculatedAlgorithm.equalsIgnoreCase(checksumAlgorithm);
@@ -117,7 +118,7 @@ public class FolderWriteStrategy implements WriteStrategy {
       if (hasValidPreCalculatedChecksum) {
         // File has pre-calculated checksum - just copy data without calculating
         LOGGER.debug("Using pre-calculated checksum for file {}", zipEntryInfo.getFilePath());
-        final byte[] buffer = new byte[4096];
+        final byte[] buffer = new byte[BUFFER_SIZE];
         int numRead;
         do {
           numRead = is.read(buffer);
@@ -128,7 +129,7 @@ public class FolderWriteStrategy implements WriteStrategy {
         setChecksum(zipEntryInfo, preCalculatedChecksum, preCalculatedAlgorithm);
       } else {
         // Calculate checksum while copying
-        final byte[] buffer = new byte[4096];
+        final byte[] buffer = new byte[BUFFER_SIZE];
         final MessageDigest complete = MessageDigest.getInstance(checksumAlgorithm);
         int numRead;
         do {

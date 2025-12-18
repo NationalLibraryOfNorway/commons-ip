@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 
 public final class ZIPUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(ZIPUtils.class);
+  private static final int BUFFER_SIZE = 4096;
 
   private ZIPUtils() {
     // do nothing
@@ -111,8 +112,9 @@ public final class ZIPUtils {
    * @param checksumAlgorithm the algorithm used for the pre-calculated checksum (may be null or empty)
    * @return the updated map of zip entries
    */
-  public static Map<String, ZipEntryInfo> addFileTypeFileToZip(Map<String, ZipEntryInfo> zipEntries, Path filePath,
-    String zipPath, FileType fileType, String preCalculatedChecksum, String checksumAlgorithm) throws IPException {
+  public static Map<String, ZipEntryInfo> addFileTypeFileToZip(final Map<String, ZipEntryInfo> zipEntries,
+    final Path filePath, final String zipPath, final FileType fileType, final String preCalculatedChecksum,
+    final String checksumAlgorithm) throws IPException {
     zipEntries.put(zipPath, new METSFileTypeZipEntryInfo(zipPath, filePath, fileType,
       preCalculatedChecksum, checksumAlgorithm));
     return zipEntries;
@@ -151,8 +153,8 @@ public final class ZIPUtils {
       }
 
       // Save pre-calculated checksum BEFORE it gets overwritten
-      String preCalculatedChecksum = file.getChecksum();
-      String preCalculatedAlgorithm = file.getChecksumAlgorithm();
+      final String preCalculatedChecksum = file.getChecksum();
+      final String preCalculatedAlgorithm = file.getChecksumAlgorithm();
 
       file.setChecksum(sip.getChecksum());
       file.prepareEntryForZipping();
@@ -170,7 +172,7 @@ public final class ZIPUtils {
 
       try (InputStream inputStream = Files.newInputStream(file.getFilePath());) {
         // Check if file already has a pre-calculated checksum matching the SIP's algorithm
-        boolean hasValidPreCalculatedChecksum = preCalculatedChecksum != null
+        final boolean hasValidPreCalculatedChecksum = preCalculatedChecksum != null
           && !preCalculatedChecksum.isEmpty()
           && preCalculatedAlgorithm != null
           && preCalculatedAlgorithm.equalsIgnoreCase(sip.getChecksum());
@@ -243,7 +245,7 @@ public final class ZIPUtils {
     } while (numRead != -1);
 
     // generate hex versions of the digests
-    HexFormat hexFormat = HexFormat.of().withUpperCase();
+    final HexFormat hexFormat = HexFormat.of().withUpperCase();
     algorithms.forEach((alg, dig) -> values.put(alg, hexFormat.formatHex(dig.digest())));
 
     return values;
@@ -290,8 +292,9 @@ public final class ZIPUtils {
     }
   }
 
-  private static void copyWithoutChecksum(ZipOutputStream zos, InputStream inputStream) throws IOException {
-    byte[] buffer = new byte[4096];
+  private static void copyWithoutChecksum(final ZipOutputStream zos, final InputStream inputStream)
+    throws IOException {
+    final byte[] buffer = new byte[BUFFER_SIZE];
     int numRead;
     do {
       numRead = inputStream.read(buffer);

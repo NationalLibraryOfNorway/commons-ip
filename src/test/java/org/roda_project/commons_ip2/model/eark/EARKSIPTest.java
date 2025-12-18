@@ -67,6 +67,8 @@ import org.xml.sax.SAXException;
  */
 public class EARKSIPTest {
   private static final String REPRESENTATION_STATUS_NORMALIZED = "NORMALIZED";
+  private static final String SIP_CHECKSUM_TEST_ID = "SIP_CHECKSUM_TEST";
+  private static final String REPRESENTATION_WITH_CHECKSUM = "representation_with_checksum";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(EARKSIPTest.class);
 
@@ -887,7 +889,7 @@ public class EARKSIPTest {
     LOGGER.info("Testing pre-calculated checksum support");
 
     // 1) Create SIP with pre-calculated checksum
-    final SIP sip = new EARKSIP("SIP_CHECKSUM_TEST", IPContentType.getMIXED(), IPContentInformationType.getMIXED(),
+    final SIP sip = new EARKSIP(SIP_CHECKSUM_TEST_ID, IPContentType.getMIXED(), IPContentInformationType.getMIXED(),
       "2.1.0");
     sip.addCreatorSoftwareAgent("RODA Commons IP", "2.0.0");
     sip.setDescription("SIP with pre-calculated checksums");
@@ -899,7 +901,7 @@ public class EARKSIPTest {
     sip.addDescriptiveMetadata(metadataDescriptiveDC);
 
     // 3) Create a representation with a file that has a pre-calculated checksum
-    final IPRepresentation representation = new IPRepresentation("representation_with_checksum");
+    final IPRepresentation representation = new IPRepresentation(REPRESENTATION_WITH_CHECKSUM);
     sip.addRepresentation(representation);
 
     // Use a FAKE checksum - this proves the library uses our value instead of calculating
@@ -940,9 +942,9 @@ public class EARKSIPTest {
     }
 
     // Find and read the representation METS file
-    final Path representationMetsPath = extractDir.resolve("SIP_CHECKSUM_TEST")
+    final Path representationMetsPath = extractDir.resolve(SIP_CHECKSUM_TEST_ID)
       .resolve("representations")
-      .resolve("representation_with_checksum")
+      .resolve(REPRESENTATION_WITH_CHECKSUM)
       .resolve("METS.xml");
 
     Assert.assertTrue("Representation METS file should exist", Files.exists(representationMetsPath));
