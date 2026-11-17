@@ -5,6 +5,7 @@ import org.junit.Test;
 import org.roda_project.commons_ip.model.ParseException;
 import org.roda_project.commons_ip2.mets_v1_12.beans.Mets;
 import org.roda_project.commons_ip2.mets_v1_12.beans.MetsType;
+import org.roda_project.commons_ip2.model.IPContentType.IPContentTypeEnum;
 import org.roda_project.commons_ip2.model.SIP;
 
 /**
@@ -51,7 +52,51 @@ public class ContentTypeParsingTest {
 
     utils.setIPContentType(mets, sip);
 
-    Assert.assertEquals(TYPE_TEXT, sip.getContentType().asString());
+    Assert.assertEquals(TYPE_TEXT, sip.getContentType().getType().asString());
+    Assert.assertEquals(IPContentTypeEnum.TEXT, sip.getContentType().getType());
+  }
+
+  /**
+   * Maps every CSIP vocabulary value in METS TYPE to its enum constant, not to OTHER.
+   */
+  @Test
+  public void contentTypeMapsVocabularyValueToEnum() throws ParseException {
+    final EARKUtils utils = new EARKUtils(new METSGeneratorFactory().getGenerator(SIP_VERSION));
+    for (final IPContentTypeEnum expected : IPContentTypeEnum.values()) {
+      if (expected == IPContentTypeEnum.OTHER) {
+        continue;
+      }
+      final Mets mets = new Mets();
+      final MetsType.MetsHdr metsHdr = new MetsType.MetsHdr();
+      metsHdr.setOAISPACKAGETYPE(SIP_TYPE);
+      mets.setMetsHdr(metsHdr);
+      mets.setTYPE(expected.getType());
+      final SIP sip = new EARKSIP();
+
+      utils.setIPContentType(mets, sip);
+
+      Assert.assertEquals(expected.getType(), expected, sip.getContentType().getType());
+    }
+  }
+
+  /**
+   * Keeps an unknown METS TYPE value as OTHER with the value in otherType.
+   */
+  @Test
+  public void contentTypeUnknownValueBecomesOther() throws ParseException {
+    final Mets mets = new Mets();
+    final MetsType.MetsHdr metsHdr = new MetsType.MetsHdr();
+    metsHdr.setOAISPACKAGETYPE(SIP_TYPE);
+    mets.setMetsHdr(metsHdr);
+    mets.setTYPE(OTHER_TYPE_VALUE);
+
+    final EARKUtils utils = new EARKUtils(new METSGeneratorFactory().getGenerator(SIP_VERSION));
+    final SIP sip = new EARKSIP();
+
+    utils.setIPContentType(mets, sip);
+
+    Assert.assertEquals(IPContentTypeEnum.OTHER, sip.getContentType().getType());
+    Assert.assertEquals(OTHER_TYPE_VALUE, sip.getContentType().getOtherType());
   }
 
   /**
@@ -73,6 +118,8 @@ public class ContentTypeParsingTest {
     utils.setIPContentType(mets, sip);
 
     Assert.assertEquals(OTHER_TYPE_VALUE, sip.getContentType().asString());
+    Assert.assertEquals(IPContentTypeEnum.OTHER, sip.getContentType().getType());
+    Assert.assertEquals(OTHER_TYPE_VALUE, sip.getContentType().getOtherType());
   }
 
   /**

@@ -698,7 +698,7 @@ public class EARKUtils {
   }
 
   private IPContentType getContentType(final Mets mets) throws ParseException {
-    String contentType = mets.getTYPE();
+    final String contentType = mets.getTYPE();
     if (StringUtils.isBlank(contentType)) {
       throw new ParseException("METS 'TYPE' attribute does not contain any value");
     }
@@ -706,9 +706,14 @@ public class EARKUtils {
       if (StringUtils.isBlank(mets.getOTHERTYPE())) {
         throw new ParseException("METS 'OTHERTYPE' attribute does not contain any value");
       }
-      contentType = mets.getOTHERTYPE();
+      return new IPContentType(IPContentType.IPContentTypeEnum.OTHER).setOtherType(mets.getOTHERTYPE());
     }
-    return new IPContentType(contentType);
+    // METS TYPE holds the vocabulary value (e.g. "Mixed"), so match on that, not on the enum name
+    final IPContentType.IPContentTypeEnum type = IPContentType.IPContentTypeEnum.parse(contentType);
+    if (type == IPContentType.IPContentTypeEnum.OTHER) {
+      return new IPContentType(IPContentType.IPContentTypeEnum.OTHER).setOtherType(contentType);
+    }
+    return new IPContentType(type);
   }
 
   protected void setIPContentInformationType(final Mets mets, final IPInterface ip) throws ParseException {
